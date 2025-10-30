@@ -13,6 +13,7 @@ ELEVATOR_TRIP_TIME = 0.5  # ms
 N_BOOKS_LIBRARY = 10
 MAX_BOOKS_LIBRARY = 20
 N_WITCHES = 0
+HUNTER_TRIPS = 0
 
 # ELEVATOR
 # elevator only operates when it is full or no more wizards want to go up (only up)
@@ -42,7 +43,7 @@ N_WITCHES = 0
 
 # WITCHES:
 # arrive to tower --> stay random amount of time --> leave tower
-# not taken into account as people in tower
+# taken into account as people in tower
 # each witch will go to the tower 3 times
 
 
@@ -277,6 +278,7 @@ class Library:  # for actions regarding books
     def run(self):
         with self.condition:
             while self.wizardPos == "library":
+                i=0
                 # available books:
                 # take a book
                 
@@ -303,7 +305,11 @@ class Wizard(Thread):
         thread = threading.current_thread()
         thread.name = "Wizard"
 
-    def 
+        self.elevator.ascendToLibrary(self.wizard_id)
+        self.tower.wizardEntersTower(self.wizard_id)
+        self.librarian.wizardGetBook(self.wizard_id)
+        self.tower.wizardLeavesTower(self.wizard_id)
+        
     
 class Librarian(Thread):
     def __init__(self, tower, elevator, witches, wizards):
@@ -317,14 +323,26 @@ class Librarian(Thread):
 
 
 class Witch(Thread):
-    def __init__(self, witch_id, tower, elevator, librarian):
+    def __init__(self, witch_id, tower, elevator, librarian, count):
         self.books = 0
         self.witch_id = witch_id
+        self.count = count
+        self.elevator = elevator
+        self.tower = tower
+        self.librarian = librarian
 
     def run(self):
         thread = threading.current_thread()
         thread.name = "Witch"
 
+        self.tower.witchEntersTower(self.witch_id)
+        print(f"[Witch {self.witch_id}] Yo, sisters, our eyes feast. Our hearts are glad. loooool")
+        sleep(random.random())
+        self.count += 1
+        self.tower.witchLeavesTower(self.witch_id)
+        sleep(random.random()) #wait until going up again
+
+        
 
 class BookHunter(Thread):
     def __init__(self):
@@ -415,12 +433,23 @@ class BookHunter(Thread):
         thread = threading.current_thread()
         thread.name = "BookHunter"
 
+<<<<<<< Updated upstream
 def main():
     elevator = Elevator()
     librarian = Librarian()
     witches = Witch()
     bookHunters = BookHunter()
     wizard = Wizard()
+=======
+        for i in range(HUNTER_TRIPS):
+            print(f"BOOK HUNTER {self.hunter_id} is looking restlently for books, trip number: {i+1}).")
+            sleep(random.random())
+
+            
+    
+
+
+>>>>>>> Stashed changes
 
 def main():
     elevator = Elevator()

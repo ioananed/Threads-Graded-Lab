@@ -73,12 +73,12 @@ class Tower:
         with self.condition:
             self.wizardsWaiting += 1
         # condition to enter the tower:
-        while (
-            self.witchesInside > 0
-            or (self.wizardsInside + self.witchesInside) >= self.max_persons
-            or (self.witchesWaiting > 0 and self.turn == "witch")
-        ):
-            self.condition.wait()
+            while (
+                self.witchesInside > 0     #no witches inside the tower
+                or (self.wizardsInside + self.witchesInside) >= self.max_persons #max number not reached
+                or (self.witchesWaiting > 0 and self.turn == "witch")     #si no hay witches waiting y no es el turno de las witches
+            ):
+                self.condition.wait()
 
         # wizard enters the tower:
         self.wizardsWaiting -= 1
@@ -86,35 +86,33 @@ class Tower:
         print(f"Wizard {wizard_id} entering the Tower. Tan Tan Tan")
 
     def wizardLeavesTower(self, wizard_id):
-        with self.condition:
             self.wizardsInside -= 1
             print(f"Wizard {wizard_id} is leaving the Tower")
 
             # is the wizards is the last wizard to get out of the tower:
             if self.wizardInside == 0:
                 self.turn = "witch"
-                self.lock.notify_all()
+                self.condition.notify_all()
             else:
-                self.lock.notify_all()
+                self.condition.notify_all()
 
     def witchEntersTower(self, witch_id):
-        self.witchesInside += 1
-        print(f"Witch {witch_id} is entering the tower")
-
-        with self.Condition:
+        with self.condition:
+            self.witchesInside += 1
+            print(f"Witch {witch_id} is entering the tower")
             self.witchesWaiting -= 1
 
-        while (
-            (self.wizardsInside > 0)
-            or (self.wizardsInside + self.witchesInside >= self.max_persons)
-            or (self.wizardsWaiting > 0 and self.turn == "wizard")
-        ):
-            self.condition.wait()
+            while (
+                (self.wizardsInside > 0) #no hay wizards dentro de la torre
+                or (self.wizardsInside + self.witchesInside >= self.max_persons) #no se ha alcanzado el máximo número de persons
+                or (self.wizardsWaiting > 0 and self.turn == "wizard") # que no sea el turno de los wizards locos
+                or self.count > 3
+            ):
+                self.condition.wait()
 
     def witchLeavesTower(self, witch_id):
-        with self.condition:
-            self.wichesInside -= 1
-            self.print(f"Witch with {witch_id} is left the Tower")
+        self.wichesInside -= 1
+        self.print(f"Witch with {witch_id} is left the Tower")
 
         if self.witchesInside == 0:
             self.turn = "wizard"
@@ -172,6 +170,8 @@ class Library:  # for actions regarding books
 
     def huntersDeliverBooks(self, hunter_id, num_hunters):
         with self.condition:
+            while 0 < self.new_books and self.new_books < 2:    #hay books to process
+                self.condition.wait()   #esperan a que se procesen los libros
             num_hunters += 1    #llega un hunter y se suma uno (luego tiene q esperar a q llegue el resto)
             print(f"Hunter {hunter_id} has arrived to the library")
             while num_hunters < 3:
@@ -179,13 +179,11 @@ class Library:  # for actions regarding books
             self.condition.notify_all()     #cuando llega el tercero tiene q avisar q ha llegado para despertar a los otros hunters y q se procesen los libros    
             print("All 3 hunters have arrived to the library")
             #ahora el librarian tiene q procesar los libros nuevos
-            while 0 < self.new_books and self.new_books < 2:    #hay books to process
-                self.condition.wait()   #esperan a que se procesen los libros
 
     def processingBooks(self, new_books):
         with self.condition:
             print(f"[{self.name}] By the Beard of Archancellor, these {new_books} dreadful parchments yet await their proper docket and inscription")
-            while self.new_books == 0:      #mientras no haya libros para procesar
+            while 0 < self.new_books and self.new_books < 2:      #mientras no haya libros para procesar
                 self.condition.wait()
             self.books += self.new_books
             print(f"[{self.name}] Behold!, these {new_books} dreadful parchments yet await their proper docket and inscription")
@@ -205,8 +203,8 @@ class Wizard(Thread):
         thread = threading.current_thread()
         thread.name = "Wizard"
 
-        self.elevator.ascendToLibrary(self.wizard_id)
         self.tower.wizardEntersTower(self.wizard_id)
+        self.elevator.ascendToLibrary(self.wizard_id)
         self.librarian.wizardGetBook(self.wizard_id)
         self.tower.wizardLeavesTower(self.wizard_id)
     
@@ -233,7 +231,7 @@ class Witch(Thread):
         self.tower.witchEntersTower(self.witch_id)
         print(f"[Witch {self.witch_id}] Yo, sisters, our eyes feast. Our hearts are glad. loooool")
         sleep(random.random())
-        self.count += 1
+        self.count += 1  #CHECKEAR!!! EN TOWER TB!!! NO SE SI ESTÁ BIEN
         self.tower.witchLeavesTower(self.witch_id)
         sleep(random.random()) #wait until going up again
 
@@ -249,28 +247,30 @@ class BookHunter(Thread):
         thread.name = "BookHunter"
 
         for i in range(HUNTER_TRIPS):
-            print(f"BOOK HUNTER {self.hunter_id} is looking restlently for books, trip number: {i+1}).")
+            print(f"[Book hunter {self.hunter_id}] By the dictates of the Dean, we shall proceed to commence the Hunt {i+1}).")
             sleep(random.random())
 
 
 def main():
+    tower = Tower(MAX_PERSONS_TOWER)
+    threads =       []
     elevator = Elevator()
-    librarian = Librarian()
+    librarian = Librarian(tower, elevator, witches, wizards)
     witches = Witch()
     bookHunters = BookHunter()
-    wizard = Wizard()
+    wizards = Wizard()
 
     elevator.start()
     librarian.start()
     witches.start()
     bookHunters.start()
-    wizard.start()
+    wizards.start()
 
     elevator.join()
     librarian.join()
     witches.join()
     bookHunters.join()
-    wizard.join()
+    wizards.join()
 
 
 if __name__ == "__main__":
